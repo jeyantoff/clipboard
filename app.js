@@ -40,7 +40,7 @@ const MAX_FILE_SIZE_TOTAL = 20 * 1024 * 1024; // 20MB max per file (chunked)
 const MAX_FILES_PER_SESSION = 5;
 const MAX_TOTAL_FILE_SIZE = 5 * 1024 * 1024; // 5MB total in Firebase at any time
 const LOCK_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
-const PRESENCE_UPDATE_MS = 15000; // 15s
+const PRESENCE_UPDATE_MS = 30000; // 30s
 const RECENT_SESSIONS_KEY = 'clipboard_recent_sessions';
 const MAX_SESSIONS = 10;
 const MAX_USERS_PER_SESSION = 20;
@@ -475,11 +475,28 @@ function cleanupSession() {
 }
 
 // ===== Sync Loop =====
+let syncCycleCount = 0;
 function startSyncLoop() {
   if (state.syncTimer) clearInterval(state.syncTimer);
+  syncCycleCount = 0;
   state.syncTimer = setInterval(async () => {
     if (!state.sessionId) return;
-    await Promise.all([syncClips(), syncFiles(), syncLock(), syncPresence()]);
+    syncCycleCount++;
+    try {
+      // Always sync clips and lock (essential)
+      await Promise.all([syncClips(), syncLock()]);
+      // Sync files and presence less frequently (every 3rd cycle)
+      if (syncCycleCount % 3 === 0) {
+        await Promise.all([syncFiles(), syncPresence()]);
+      }
+    } catch (err) {
+      if (err.code === 'resource-exhausted' || (err.message && err.message.includes('429'))) {
+        console.warn('Rate limited, backing off...');
+        // Double the interval temporarily
+        clearInterval(state.syncTimer);
+        state.syncTimer = setTimeout(() => startSyncLoop(), state.syncInterval * 2000);
+      }
+    }
   }, state.syncInterval * 1000);
 }
 
