@@ -30,6 +30,7 @@ const state = {
   lockTimeoutTimer: null,
   visitorId: generateId(8),
   debounceTimers: {},
+  lastSavedText: {},
 };
 
 // ===== Constants =====
@@ -662,6 +663,13 @@ async function syncClips() {
 
   const newClips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+  // Track last saved text for change detection
+  newClips.forEach(c => {
+    if (!(c.id in state.lastSavedText)) {
+      state.lastSavedText[c.id] = c.text || '';
+    }
+  });
+
   // If the writer is actively editing, update clips data but preserve textarea content
   if (state.isWriter) {
     const focusedTextarea = document.activeElement;
@@ -872,10 +880,11 @@ function handleClipInput(clipId, value) {
     }
   }
 
-  // Save to Firestore using sync interval as the debounce delay
+  // Save to Firestore using sync interval as the debounce delay, only if text changed
   if (state.debounceTimers[clipId]) clearTimeout(state.debounceTimers[clipId]);
   state.debounceTimers[clipId] = setTimeout(async () => {
     if (!state.sessionId || !state.isWriter) return;
+    if (state.lastSavedText[clipId] === value) return; // No change, skip save
     await db.collection('sessions').doc(state.sessionId)
       .collection('clips').doc(clipId)
       .update({
@@ -883,6 +892,7 @@ function handleClipInput(clipId, value) {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: { uid: state.user.uid, displayName: state.user.displayName || '' },
       });
+    state.lastSavedText[clipId] = value;
   }, state.syncInterval * 1000);
 }
 
