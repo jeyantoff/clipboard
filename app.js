@@ -625,8 +625,7 @@ function renderClips() {
         <p>No clips yet. ${state.isReadOnly ? 'Waiting for the writer...' : 'Start writing to add some!'}</p>
       </div>
     `;
-    return;
-  }
+  } else {
 
   container.innerHTML = '';
   state.clips.forEach(clip => {
@@ -728,6 +727,7 @@ function renderClips() {
       }
     }
   }
+  } // end else (clips exist)
 
   const addArea = document.getElementById('add-clip-area');
   if (state.isWriter && !state.isReadOnly) {
