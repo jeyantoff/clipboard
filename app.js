@@ -400,7 +400,7 @@ async function openSession(sessionId, isReadOnly) {
   document.getElementById('session-title').textContent = sessionId;
 
   saveRecentSession(sessionId);
-  docRef.update({ lastActiveAt: firebase.firestore.FieldValue.serverTimestamp() });
+  docRef.update({ lastActiveAt: firebase.firestore.FieldValue.serverTimestamp() }).catch(() => {});
 
   const data = doc.data();
   state.syncInterval = data.syncInterval || 5;
@@ -419,11 +419,16 @@ async function openSession(sessionId, isReadOnly) {
     document.getElementById('share-edit-btn').classList.remove('hidden');
   }
 
-  await syncClips();
-  await syncFiles();
-  await syncLock();
-  await syncPresence();
-  updatePresenceDoc(false);
+  try {
+    await syncClips();
+    await syncFiles();
+    await syncLock();
+    await syncPresence();
+    updatePresenceDoc(false);
+  } catch (err) {
+    console.error('Error syncing session:', err);
+    showToast('Error loading session data: ' + err.message, 'error');
+  }
 
   startSyncLoop();
   startPresenceLoop();
@@ -517,6 +522,14 @@ function renderPresence() {
 // ===== Writer Lock =====
 async function syncLock() {
   if (!state.sessionId) return;
+  if (state.isReadOnly) {
+    // In read-only mode, just update isWriter state and re-render clips
+    const doc = await db.collection('sessions').doc(state.sessionId).get();
+    const lock = doc.data().writerLock;
+    state.isWriter = false;
+    renderClipsEditState();
+    return;
+  }
   const doc = await db.collection('sessions').doc(state.sessionId).get();
   const data = doc.data();
   const lock = data.writerLock;
