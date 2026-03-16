@@ -186,10 +186,12 @@ function handleRoute() {
   } else if (parts[0] === 'admin' && state.isAdmin) {
     showScreen('admin');
     loadAdminPanel();
+  } else if (parts[0] === 'v' && parts[1]) {
+    // View-only link: #/v/{viewToken}
+    openSessionByViewToken(parts[1]);
   } else {
     const sessionId = parts[0];
-    const isView = parts[1] === 'view';
-    openSession(sessionId, isView);
+    openSession(sessionId, false);
   }
 }
 
@@ -304,19 +306,21 @@ async function deleteSession(sessionId) {
 // ===== Home Screen =====
 document.getElementById('create-session-btn').addEventListener('click', async () => {
   // Check session limit
-  const allSessions = await db.collection('sessions').get();
+  const allSessions = await db.collection('sessions').limit(MAX_SESSIONS).get();
   if (allSessions.size >= MAX_SESSIONS) {
     showToast(`Max ${MAX_SESSIONS} active sessions reached! Ask admin to clean up.`, 'error');
     return;
   }
 
   const sessionId = generateId(8);
+  const viewToken = generateId(32);
   await db.collection('sessions').doc(sessionId).set({
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     lastActiveAt: firebase.firestore.FieldValue.serverTimestamp(),
     syncInterval: 5,
     writerLock: null,
     createdBy: { uid: state.user.uid, displayName: state.user.displayName },
+    viewToken: viewToken,
   });
   saveRecentSession(sessionId);
   window.location.hash = '#/' + sessionId;
@@ -366,6 +370,23 @@ function loadRecentSessions() {
   });
 }
 
+// ===== View Token Lookup =====
+async function openSessionByViewToken(viewToken) {
+  const snap = await db.collection('sessions')
+    .where('viewToken', '==', viewToken)
+    .limit(1)
+    .get();
+
+  if (snap.empty) {
+    showToast('Invalid view link!', 'error');
+    window.location.hash = '#/';
+    return;
+  }
+
+  const sessionId = snap.docs[0].id;
+  openSession(sessionId, true);
+}
+
 // ===== Session =====
 async function openSession(sessionId, isReadOnly) {
   const docRef = db.collection('sessions').doc(sessionId);
@@ -413,10 +434,12 @@ async function openSession(sessionId, isReadOnly) {
     document.getElementById('upload-area').classList.add('hidden');
     document.getElementById('sync-control').classList.add('hidden');
     document.getElementById('share-edit-btn').classList.add('hidden');
+    document.getElementById('share-view-btn').classList.add('hidden');
   } else {
     document.getElementById('lock-btn').classList.remove('hidden');
     document.getElementById('sync-control').classList.remove('hidden');
     document.getElementById('share-edit-btn').classList.remove('hidden');
+    document.getElementById('share-view-btn').classList.remove('hidden');
   }
 
   try {
@@ -715,6 +738,12 @@ function renderClips() {
     const textarea = el.querySelector('.clip-textarea');
     textarea.value = clip.text || '';
 
+    // Auto-grow textarea to fit content
+    const autoGrow = (ta) => {
+      ta.style.height = 'auto';
+      ta.style.height = Math.max(120, ta.scrollHeight) + 'px';
+    };
+
     const preview = el.querySelector('.clip-preview');
     const lang = clip.language || 'plaintext';
 
@@ -750,7 +779,10 @@ function renderClips() {
     langSelect.disabled = !isEditing;
 
     if (isEditing) {
-      textarea.addEventListener('input', () => handleClipInput(clip.id, textarea.value));
+      textarea.addEventListener('input', () => {
+        autoGrow(textarea);
+        handleClipInput(clip.id, textarea.value);
+      });
       textarea.addEventListener('keydown', () => {
         resetLockTimeout();
         updatePresenceDoc(true);
@@ -788,6 +820,10 @@ function renderClips() {
     });
 
     container.appendChild(el);
+
+    // Auto-grow after appending to DOM
+    const appendedTa = container.lastElementChild.querySelector('.clip-textarea');
+    if (appendedTa) autoGrow(appendedTa);
   });
 
   if (focusedClipId) {
@@ -1199,8 +1235,14 @@ document.getElementById('share-edit-btn').addEventListener('click', () => {
   });
 });
 
-document.getElementById('share-view-btn').addEventListener('click', () => {
-  const url = window.location.origin + window.location.pathname + '#/' + state.sessionId + '/view';
+document.getElementById('share-view-btn').addEventListener('click', async () => {
+  const doc = await db.collection('sessions').doc(state.sessionId).get();
+  const viewToken = doc.data().viewToken;
+  if (!viewToken) {
+    showToast('No view token found — session may need to be recreated', 'error');
+    return;
+  }
+  const url = window.location.origin + window.location.pathname + '#/v/' + viewToken;
   navigator.clipboard.writeText(url).then(() => {
     showToast('View-only link copied!', 'success');
   });

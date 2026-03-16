@@ -477,12 +477,13 @@ body {
   padding: 16px;
   border: none;
   outline: none;
-  resize: vertical;
+  resize: none;
   min-height: 120px;
   width: 100%;
   background: transparent;
   color: var(--text);
   line-height: 1.6;
+  overflow: hidden;
 }
 .clip-textarea:disabled {
   background: rgba(0,0,0,0.02);
