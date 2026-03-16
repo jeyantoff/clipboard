@@ -506,9 +506,14 @@ function renderPresence() {
   const bar = document.getElementById('presence-bar');
   const typingEl = document.getElementById('typing-indicator');
 
-  bar.innerHTML = state.presence.map(p => `
-    <img class="avatar-sm" src="${p.photoURL}" alt="${p.displayName}" title="${p.displayName}">
-  `).join('') + `<span class="presence-count">${state.presence.length}/${MAX_USERS_PER_SESSION} online</span>`;
+  // Only update presence bar if the user list changed
+  const newPresenceKey = state.presence.map(p => p.uid).sort().join(',');
+  if (bar.dataset.presenceKey !== newPresenceKey) {
+    bar.dataset.presenceKey = newPresenceKey;
+    bar.innerHTML = state.presence.map(p => `
+      <img class="avatar-sm" src="${p.photoURL}" alt="${p.displayName}" title="${p.displayName}">
+    `).join('') + `<span class="presence-count">${state.presence.length}/${MAX_USERS_PER_SESSION} online</span>`;
+  }
 
   const typingUsers = state.presence.filter(p => p.isTyping && p.uid !== state.user.uid);
   if (typingUsers.length > 0) {
@@ -536,9 +541,19 @@ async function syncLock() {
   const lockBtn = document.getElementById('lock-btn');
   const lockStatus = document.getElementById('lock-status');
 
+  const prevIsWriter = state.isWriter;
+  const newLockUid = lock ? lock.uid : null;
+  const prevLockUid = state._lastLockUid || null;
+  state._lastLockUid = newLockUid;
+
+  // Skip DOM updates if lock holder hasn't changed
+  const lockChanged = newLockUid !== prevLockUid;
+
   if (!lock) {
     state.isWriter = false;
-    lockStatus.innerHTML = '<span style="color: var(--text-subtle)">No one is writing</span>';
+    if (lockChanged) {
+      lockStatus.innerHTML = '<span style="color: var(--text-subtle)">No one is writing</span>';
+    }
     if (!state.isReadOnly) {
       lockBtn.textContent = 'Start Writing';
       lockBtn.classList.remove('hidden');
@@ -546,7 +561,9 @@ async function syncLock() {
     }
   } else if (lock.uid === state.user.uid) {
     state.isWriter = true;
-    lockStatus.innerHTML = `<div class="writer-info"><img class="avatar-sm" src="${lock.photoURL}"> You are writing</div>`;
+    if (lockChanged) {
+      lockStatus.innerHTML = `<div class="writer-info"><img class="avatar-sm" src="${lock.photoURL}"> You are writing</div>`;
+    }
     lockBtn.textContent = 'Stop Writing';
     lockBtn.classList.remove('hidden');
     lockBtn.disabled = false;
@@ -555,7 +572,9 @@ async function syncLock() {
     const lockAge = Date.now() - (lock.lockedAt.toDate ? lock.lockedAt.toDate().getTime() : lock.lockedAt);
     const isExpired = lockAge > LOCK_TIMEOUT_MS;
 
-    lockStatus.innerHTML = `<div class="writer-info"><img class="avatar-sm" src="${lock.photoURL}"> ${sanitizeHtml(lock.displayName)} is writing</div>`;
+    if (lockChanged) {
+      lockStatus.innerHTML = `<div class="writer-info"><img class="avatar-sm" src="${lock.photoURL}"> ${sanitizeHtml(lock.displayName)} is writing</div>`;
+    }
 
     if (!state.isReadOnly) {
       if (isExpired) {
@@ -570,7 +589,10 @@ async function syncLock() {
     }
   }
 
-  renderClipsEditState();
+  // Only re-render clips if writer state actually changed
+  if (prevIsWriter !== state.isWriter) {
+    renderClipsEditState();
+  }
 }
 
 document.getElementById('lock-btn').addEventListener('click', async () => {
@@ -615,7 +637,45 @@ async function syncClips() {
     .orderBy('order')
     .get();
 
-  state.clips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const newClips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // If the writer is actively editing, update clips data but preserve textarea content
+  if (state.isWriter) {
+    const focusedTextarea = document.activeElement;
+    const focusedClipId = (focusedTextarea && focusedTextarea.classList.contains('clip-textarea'))
+      ? focusedTextarea.closest('.clip-card')?.dataset.clipId
+      : null;
+
+    // Check if clips structure changed (added/removed/reordered)
+    const oldIds = state.clips.map(c => c.id).join(',');
+    const newIds = newClips.map(c => c.id).join(',');
+    const structureChanged = oldIds !== newIds;
+
+    if (!structureChanged && focusedClipId) {
+      // Just update state without re-rendering — the writer is typing
+      state.clips = newClips;
+      // Update non-focused clips' previews only
+      newClips.forEach(clip => {
+        if (clip.id === focusedClipId) return;
+        const card = document.querySelector(`.clip-card[data-clip-id="${clip.id}"]`);
+        if (!card) return;
+        const ta = card.querySelector('.clip-textarea');
+        if (ta) ta.value = clip.text || '';
+        const preview = card.querySelector('.clip-preview');
+        const lang = clip.language || 'plaintext';
+        if (lang === 'markdown') {
+          preview.innerHTML = renderMarkdown(clip.text || '');
+        } else if (lang === 'plaintext') {
+          preview.innerHTML = `<pre style="white-space: pre-wrap;">${sanitizeHtml(clip.text || '')}</pre>`;
+        } else {
+          preview.innerHTML = renderCode(clip.text || '', lang);
+        }
+      });
+      return;
+    }
+  }
+
+  state.clips = newClips;
   renderClips();
 }
 
