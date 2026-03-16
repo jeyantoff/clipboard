@@ -858,6 +858,21 @@ function renderClipsEditState() {
 }
 
 function handleClipInput(clipId, value) {
+  // Update local preview immediately (no delay)
+  const card = document.querySelector(`.clip-card[data-clip-id="${clipId}"]`);
+  if (card) {
+    const preview = card.querySelector('.clip-preview');
+    const lang = card.querySelector('.clip-language').value;
+    if (lang === 'markdown') {
+      preview.innerHTML = renderMarkdown(value);
+    } else if (lang === 'plaintext') {
+      preview.innerHTML = `<pre style="white-space: pre-wrap;">${sanitizeHtml(value)}</pre>`;
+    } else {
+      preview.innerHTML = renderCode(value, lang);
+    }
+  }
+
+  // Save to Firestore using sync interval as the debounce delay
   if (state.debounceTimers[clipId]) clearTimeout(state.debounceTimers[clipId]);
   state.debounceTimers[clipId] = setTimeout(async () => {
     if (!state.sessionId || !state.isWriter) return;
@@ -868,19 +883,7 @@ function handleClipInput(clipId, value) {
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: { uid: state.user.uid, displayName: state.user.displayName || '' },
       });
-    const card = document.querySelector(`.clip-card[data-clip-id="${clipId}"]`);
-    if (card) {
-      const preview = card.querySelector('.clip-preview');
-      const lang = card.querySelector('.clip-language').value;
-      if (lang === 'markdown') {
-        preview.innerHTML = renderMarkdown(value);
-      } else if (lang === 'plaintext') {
-        preview.innerHTML = `<pre style="white-space: pre-wrap;">${sanitizeHtml(value)}</pre>`;
-      } else {
-        preview.innerHTML = renderCode(value, lang);
-      }
-    }
-  }, 500);
+  }, state.syncInterval * 1000);
 }
 
 document.getElementById('add-clip-btn').addEventListener('click', async () => {
