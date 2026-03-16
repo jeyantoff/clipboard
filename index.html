@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clipboard — Shared Live Clipboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="screen">
+    <div class="login-container">
+      <div class="login-logo">📋</div>
+      <h1 class="login-title">Clipboard</h1>
+      <p class="login-subtitle">Share text & code in real-time with anyone</p>
+      <button id="google-signin-btn" class="btn btn-primary btn-lg">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+
+  <!-- Home Screen -->
+  <div id="home-screen" class="screen hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <span class="header-logo">📋</span>
+        <span class="header-title">Clipboard</span>
+      </div>
+      <div class="header-right">
+        <button id="admin-btn" class="btn btn-ghost btn-sm hidden" title="Admin Panel">⚙ Admin</button>
+        <img id="user-avatar" class="avatar" src="" alt="avatar">
+        <span id="user-name" class="user-name"></span>
+        <button id="signout-btn" class="btn btn-ghost btn-sm">Sign Out</button>
+      </div>
+    </header>
+    <main class="home-main">
+      <div class="home-hero">
+        <h2>Your shared clipboards</h2>
+        <p class="subtle-text">Create a new session or join an existing one</p>
+      </div>
+      <div class="home-actions">
+        <button id="create-session-btn" class="btn btn-primary btn-lg">+ New Clipboard</button>
+        <div class="join-group">
+          <input id="join-input" type="text" class="input" placeholder="Paste a session link or ID...">
+          <button id="join-btn" class="btn btn-secondary">Join</button>
+        </div>
+      </div>
+      <div id="recent-sessions" class="recent-sessions">
+        <!-- Populated by JS -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Session Screen -->
+  <div id="session-screen" class="screen hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <a href="#/" class="header-back" title="Back to home">←</a>
+        <span class="header-logo">📋</span>
+        <span id="session-title" class="header-title">Session</span>
+      </div>
+      <div class="header-center">
+        <div id="presence-bar" class="presence-bar">
+          <!-- Avatars populated by JS -->
+        </div>
+        <span id="typing-indicator" class="typing-indicator hidden"></span>
+      </div>
+      <div class="header-right">
+        <div id="sync-control" class="sync-control">
+          <label class="sync-label">Sync:</label>
+          <select id="sync-interval" class="select-sm">
+            <option value="1">1s</option>
+            <option value="3">3s</option>
+            <option value="5" selected>5s</option>
+            <option value="10">10s</option>
+            <option value="30">30s</option>
+          </select>
+        </div>
+        <button id="share-edit-btn" class="btn btn-ghost btn-sm" title="Copy edit link">🔗 Edit Link</button>
+        <button id="share-view-btn" class="btn btn-ghost btn-sm" title="Copy view-only link">👁 View Link</button>
+        <img id="session-user-avatar" class="avatar" src="" alt="avatar">
+      </div>
+    </header>
+
+    <div class="session-body">
+      <!-- Writer Lock Bar -->
+      <div id="writer-lock-bar" class="writer-lock-bar">
+        <div id="lock-status" class="lock-status">
+          <!-- Populated by JS -->
+        </div>
+        <button id="lock-btn" class="btn btn-primary btn-sm">Start Writing</button>
+      </div>
+
+      <!-- Clips Area -->
+      <div id="clips-container" class="clips-container">
+        <!-- Clips populated by JS -->
+      </div>
+
+      <!-- Add Clip (only for writer) -->
+      <div id="add-clip-area" class="add-clip-area hidden">
+        <button id="add-clip-btn" class="btn btn-secondary">+ Add Clip</button>
+      </div>
+
+      <!-- Files Area -->
+      <div class="files-section">
+        <div class="files-header">
+          <h3>Files</h3>
+          <span id="file-usage" class="file-usage"></span>
+        </div>
+        <div id="files-container" class="files-container">
+          <!-- Files populated by JS -->
+        </div>
+        <div id="upload-area" class="upload-area hidden">
+          <label class="upload-label">
+            <input type="file" id="file-input" class="file-input-hidden">
+            <span class="btn btn-secondary btn-sm">📎 Upload File</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Screen -->
+  <div id="admin-screen" class="screen hidden">
+    <header class="app-header">
+      <div class="header-left">
+        <a href="#/" class="header-back" title="Back to home">←</a>
+        <span class="header-logo">📋</span>
+        <span class="header-title">Admin Panel</span>
+      </div>
+      <div class="header-right">
+        <img id="admin-user-avatar" class="avatar" src="" alt="avatar">
+        <button id="admin-signout-btn" class="btn btn-ghost btn-sm">Sign Out</button>
+      </div>
+    </header>
+    <div class="admin-body">
+      <div class="admin-stats">
+        <div class="stat-card">
+          <div class="stat-value" id="admin-total-sessions">0</div>
+          <div class="stat-label">Active Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="admin-max-sessions">10</div>
+          <div class="stat-label">Max Allowed</div>
+        </div>
+      </div>
+      <div class="admin-sessions-header">
+        <h3>All Active Sessions</h3>
+        <button id="admin-refresh-btn" class="btn btn-ghost btn-sm">↻ Refresh</button>
+      </div>
+      <div id="admin-sessions-list" class="admin-sessions-list">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Clip Template -->
+  <template id="clip-template">
+    <div class="clip-card" data-clip-id="">
+      <div class="clip-header">
+        <select class="clip-language select-sm">
+          <option value="plaintext">Plain Text</option>
+          <option value="markdown">Markdown</option>
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="json">JSON</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+          <option value="sql">SQL</option>
+          <option value="bash">Shell/Bash</option>
+          <option value="xml">XML</option>
+          <option value="yaml">YAML</option>
+          <option value="cpp">C/C++</option>
+        </select>
+        <div class="clip-meta">
+          <span class="clip-updated"></span>
+          <span class="clip-author"></span>
+        </div>
+        <div class="clip-actions">
+          <button class="btn btn-ghost btn-xs clip-copy-btn" title="Copy to clipboard">📋 Copy</button>
+          <button class="btn btn-ghost btn-xs clip-delete-btn" title="Delete clip">🗑</button>
+        </div>
+      </div>
+      <div class="clip-body">
+        <div class="clip-editor-area">
+          <!-- Markdown toolbar (shown in markdown mode) -->
+          <div class="md-toolbar hidden">
+            <button class="md-btn" data-action="bold" title="Bold"><b>B</b></button>
+            <button class="md-btn" data-action="italic" title="Italic"><i>I</i></button>
+            <button class="md-btn" data-action="heading" title="Heading">H</button>
+            <button class="md-btn" data-action="link" title="Link">🔗</button>
+            <button class="md-btn" data-action="code" title="Code">&lt;/&gt;</button>
+            <button class="md-btn" data-action="list" title="List">•</button>
+          </div>
+          <textarea class="clip-textarea" placeholder="Start typing..."></textarea>
+        </div>
+        <div class="clip-preview">
+          <!-- Rendered content for viewers / preview -->
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- Firebase SDKs (compat for no-build-step) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <!-- Markdown & Syntax Highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <script src="app.js"></script>
+</body>
+</html>
