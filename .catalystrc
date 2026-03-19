@@ -1,0 +1,36 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "4823000000326577",
+      "name": "AI-in-SalesIQ",
+      "domain": {
+        "id": "50032944588",
+        "name": "ai-in-salesiq-60024792816.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60024792816",
+          "name": "Development",
+          "type": 3
+        },
+        {
+          "idx": 2,
+          "id": "50034734464",
+          "name": "Production",
+          "type": 1
+        }
+      ]
+    }
+  ]
+}

@@ -108,22 +108,7 @@
         <button id="add-clip-btn" class="btn btn-secondary">+ Add Clip</button>
       </div>
 
-      <!-- Files Area -->
-      <div class="files-section">
-        <div class="files-header">
-          <h3>Files</h3>
-          <span id="file-usage" class="file-usage"></span>
-        </div>
-        <div id="files-container" class="files-container">
-          <!-- Files populated by JS -->
-        </div>
-        <div id="upload-area" class="upload-area hidden">
-          <label class="upload-label">
-            <input type="file" id="file-input" class="file-input-hidden">
-            <span class="btn btn-secondary btn-sm">📎 Upload File</span>
-          </label>
-        </div>
-      </div>
+      <!-- Files area removed — using Catalyst backend -->
     </div>
   </div>
 
@@ -215,10 +200,8 @@
     </div>
   </template>
 
-  <!-- Firebase SDKs (compat for no-build-step) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <!-- Google Identity Services (replaces Firebase Auth) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <!-- Markdown & Syntax Highlighting -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

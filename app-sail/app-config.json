@@ -1,0 +1,9 @@
+{
+	"command": "java -jar app-sail-1.0.jar",
+	"build_path": "build-gradle/libs/app-sail-1.0.jar",
+	"stack": "java11",
+	"env_variables": {},
+	"memory": 512,
+	"scripts": {},
+	"platform": "javase"
+}
